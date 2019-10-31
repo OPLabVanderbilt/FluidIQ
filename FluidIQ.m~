@@ -1,0 +1,997 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Fluid IQ Test
+% FluidIQ.m
+%
+% To be administered with Semantic Fusion
+%
+% January 2014
+% Ana Beth Van Gulick
+%
+% Protocol and stimuli from Redick et al. 2012
+%
+% Includes 3 tasks:
+% Raven's Advanced Progressive Matrices (up to 18 trials in 10min)
+% Letter Sets (up to 15 trials in 7 min)
+% Number Seires (up to 10 trials in 5 min)
+%
+% Practice Trials are given for each task
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+try
+    
+    warning('off','MATLAB:dispatcher:InexactMatch');
+    clear all;
+    fclose('all');
+    
+    % initialize the state of the rand function
+    rand('state',sum(100*clock));
+    
+    esc_key = KbName('escape'); %this key will kill the script during the experiment
+    
+    commandwindow; % bring command window to the front
+    
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Get subject information
+    
+    repeat=1;
+    while (repeat)
+        prompt = {'Subject Number','Subject Initial','Age','Gender'};
+        defaultAnswer = {'300','aaa','1','m'};
+        answer = inputdlg(prompt,'Subject Information',1,defaultAnswer);
+        [SubjNo,SubjInit,Age,Gender] = deal(answer{:});
+        
+        if isempty(str2num(SubjNo)) || ~isreal(str2num(SubjNo))
+            h=errordlg('Subject Number must be an integer','Input Error');
+            repeat=1;
+            uiwait(h);
+        else
+            outfileName=['FluidIQ_Data/FluidIQ_',SubjNo,'_',SubjInit,'.txt'];	% set data file directory and name
+            if exist(outfileName)~=0
+                button=questdlg(['Overwrite FluidIQ_',SubjNo,'_',SubjInit,'?']);
+                if strcmp(button,'Yes'); repeat=0; end
+            else
+                repeat=0;
+            end
+        end
+    end
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%% read in trial and stimuli info %%%
+    
+    [RavensTrialNo RavensCorrect]=readdata('RavensTrials.txt',2);
+    [LettersTrialNo LettersCorrect] = readdata('LettersTrials.txt',2);
+    [NumbersTrialNo NumbersCorrect] = readdata('NumbersTrials.txt',2);
+
+    RavensImages = textread('RavensImages.txt','%s', 'delimiter','\n');
+    RavensImages = cellstr(RavensImages);
+    
+    LettersImages = textread('LettersImages.txt','%s', 'delimiter','\n');
+    LettersImages = cellstr(LettersImages);
+    
+    NumbersImages = textread('NumbersImages.txt','%s', 'delimiter','\n');
+    NumbersImages = cellstr(NumbersImages);
+    
+%     LettersCol1 = textread('LettersCol1.txt','%s', 'delimiter','\n');
+%     LettersCol2 = textread('LettersCol2.txt','%s', 'delimiter','\n');
+%     LettersCol3 = textread('LettersCol3.txt','%s', 'delimiter','\n');
+%     LettersCol4 = textread('LettersCol4.txt','%s', 'delimiter','\n');
+%     LettersCol5 = textread('LettersCol5.txt','%s', 'delimiter','\n');
+% 
+%     NumbersProblem = textread('NumbersProblem.txt','%s', 'delimiter','\n');
+%     NumbersAnsCol1 = textread('NumbersAnsCol1.txt','%s', 'delimiter','\n');
+%     NumbersAnsCol2 = textread('NumbersAnsCol2.txt','%s', 'delimiter','\n');
+%     NumbersAnsCol3 = textread('NumbersAnsCol3.txt','%s', 'delimiter','\n');
+%     NumbersAnsCol4 = textread('NumbersAnsCol4.txt','%s', 'delimiter','\n');
+%     NumbersAnsCol5 = textread('NumbersAnsCol5.txt','%s', 'delimiter','\n');
+    
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Open ScreenWindow
+    
+    Screen('Screens');
+    whichScreen = 0;
+    bcolor = 255;
+    black = [0 0 0];
+    [windowPtr,screenRect] = screen(0,'OpenWindow',bcolor,[],32);
+    sBlank = screen(windowPtr,'OpenOffScreenWindow',bcolor,screenRect);
+    
+    screenSize = screen(0,'Rect');
+    midWidth = screenSize(1,3)/2;
+    midLength = screenSize(1,4)/2;
+    
+    textsize = 24;
+    textsizefixation = 24;
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Save Data into folder and get file names
+    
+    cd('FluidIQ_Data');
+    fileName = ['FluidIQ_',SubjNo,'_',SubjInit,'.txt'];
+    dataFile = fopen(fileName,'w');
+    cd '..';
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Print headline for data file
+    
+    fprintf(dataFile,'SubjNo\tSubjInit\tAge\tGender\tTask\tTrial\tCorrect\tResponse\tAccuracy\tRT');
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % prepare trials
+    
+    HideCursor;
+    startExpt = getsecs;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%% RAVENS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    Task = 'Ravens';
+    nTrials = 18;
+    
+    %%%% Instructions for RAPM %%%%%%%%%
+    
+    %%%% Ravens Intro 1 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeA1 = 'In this experiment, you will see pictures that have a piece missing.';
+    noticeA2 = 'Below each picture, you will see eight pieces that can fill in the missing part of the picture.';
+    noticeA3 = 'You should look at each piece carefully, and choose the one that best completes the picture.';
+    noticeA4 = 'There is only one correct piece for each picture. If you believe that more than one answer is right, choose the best one.';
+    noticeA5 = 'Press any key to continue.';
+    
+    Screen('DrawText', windowPtr, noticeA1, 100, 100);
+    Screen('DrawText', windowPtr, noticeA2, 100, 140);
+    Screen('DrawText', windowPtr, noticeA3, 100, 170);
+    Screen('DrawText', windowPtr, noticeA4, 100, 200);
+    Screen('DrawText', windowPtr, noticeA5, 100, 230);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Intro 2 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeB1 = 'On the next screen is the first practice example.';
+    noticeB2 = 'The top part of this problem is a pattern with a piece cut out of it.';
+    noticeB3 = 'Look at the pattern, think what the missing piece must be like to complete the pattern correctly,';
+    noticeB4 = 'both along and down, and then find the right piece out of the eight pieces shown below the picture.';
+    noticeB5 = 'Only one of these pieces is perfectly correct.';
+    noticeB6 = 'Press the any key to continue.';
+    
+    Screen('DrawText', windowPtr, noticeB1, 100, 100);
+    Screen('DrawText', windowPtr, noticeB2, 100, 140);
+    Screen('DrawText', windowPtr, noticeB3, 100, 170);
+    Screen('DrawText', windowPtr, noticeB4, 100, 200);
+    Screen('DrawText', windowPtr, noticeB5, 100, 230);
+    Screen('DrawText', windowPtr, noticeB6, 100, 260);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 1 %%%%%%%%
+    
+    sizestimulus = [0 0 333 325];
+    Stimulus = imread(strcat('RavensImages/RavensPractice1.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    noticeC1 = 'PRACTICE 1';
+    noticeC2 = 'Press any key to reveal the answer.';
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 1 Answer %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    
+    noticeD1 = 'The correct answer was Number 5.';
+    noticeD2 = 'As the figures moved down, a horizontal line was added.';
+    noticeD3 = 'Because the figure above the missing piece contained two horizontal lines,';
+    noticeD4 = 'the answer must have three horizontal lines.';
+    noticeD5 = 'This leaves Numbers 1, 5, and 8.';
+    noticeD6 = 'As the figures move to the right, a square was taken away.';
+    noticeD7 = 'Because the figure to the left of the missing piece contains two squares, the answer must contain one square.';
+    noticeD8 = 'The only answer with three horizontal lines and one square is Number 5.';
+    noticeD9 = 'Press the any key to continue.';
+    
+    sizestimulus = [0 0 162 158];
+    Stimulus = imread(strcat('RavensImages/RavensPractice1Answer.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeD1, 100, 100);
+    Screen('DrawText', windowPtr, noticeD2, 100, 140);
+    Screen('DrawText', windowPtr, noticeD3, 100, 170);
+    Screen('DrawText', windowPtr, noticeD4, 100, 200);
+    Screen('DrawText', windowPtr, noticeD5, 100, 230);
+    Screen('DrawText', windowPtr, noticeD6, 100, 260);
+    Screen('DrawText', windowPtr, noticeD7, 100, 290);
+    Screen('DrawText', windowPtr, noticeD8, 100, 320);
+    Screen('DrawText', windowPtr, noticeD9, 100, 350);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Intro 3 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeE1 = 'On the next screen is the second practice example.';
+    noticeE2 = 'Again, look at the pattern, think what the missing piece must be like to complete the pattern correctly,';
+    noticeE3 = 'both along and down, and then find the right piece out of the eight pieces shown below the picture.';
+    noticeE4 = 'Press the any key to continue.';
+    
+    Screen('DrawText', windowPtr, noticeE1, 100, 100);
+    Screen('DrawText', windowPtr, noticeE2, 100, 140);
+    Screen('DrawText', windowPtr, noticeE3, 100, 170);
+    Screen('DrawText', windowPtr, noticeE4, 100, 200);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 2 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    sizestimulus = [0 0 404 389];
+    Stimulus = imread(strcat('RavensImages/RavensPractice2.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    noticeC1 = 'PRACTICE 2';
+    noticeC2 = 'Press any key to reveal the answer.';
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 2 Answer %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    
+    noticeF1 = 'You should have chosen Number 6 because that is the only one that fits the pattern.';
+    noticeF2 = 'Press any key to go to the next practice example.';
+    
+    sizestimulus = [0 0 171 165];
+    Stimulus = imread(strcat('RavensImages/RavensPractice2Answer.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeF1, 100, 100);
+    Screen('DrawText', windowPtr, noticeF2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 3 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    sizestimulus = [0 0 407 387];
+    Stimulus = imread(strcat('RavensImages/RavensPractice3.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    noticeC1 = 'PRACTICE 3';
+    noticeC2 = 'Press any key to reveal the answer.';
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Ravens Practice 3 Answer %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    noticeG1 = 'You should have chosen Number 3 because that is the only one that fits the pattern.';
+    noticeG2 = 'Press any key to continue.';
+    
+    sizestimulus = [0 0 171 163];
+    Stimulus = imread(strcat('RavensImages/RavensPractice3Answer.png'));
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeG1, 100, 100);
+    Screen('DrawText', windowPtr, noticeG2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Intro 4 %%%%%%%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+
+    noticeH0 = 'You will find the problems in this set slowly get more difficult.';
+    noticeH1 = 'In every problem you should use the same method of working.';
+    noticeH2 = 'Look along each row and decide what the missing figure is like.';
+    noticeH3 = 'Look down each column and decide again, and choose the piece you find that is right in both ways.';
+    noticeH4 = 'When you have found it press the NUMBER on the KEYPAD that corresponds with that answer.';
+    noticeH5 = 'There are 18 problems in the experiment.';
+    noticeH6 = 'You will have 10 minutes to complete as many problems as you can.';
+    noticeH7 = 'Try your best to select the correct answer for each picture before moving on to the next problem.';
+    noticeH8 = 'Please press any key to BEGIN.';
+    
+    Screen('DrawText', windowPtr, noticeH0, 100, 100);
+    Screen('DrawText', windowPtr, noticeH1, 100, 140);
+    Screen('DrawText', windowPtr, noticeH2, 100, 170);
+    Screen('DrawText', windowPtr, noticeH3, 100, 200);
+    Screen('DrawText', windowPtr, noticeH4, 100, 230);
+    Screen('DrawText', windowPtr, noticeH5, 100, 260);
+    Screen('DrawText', windowPtr, noticeH6, 100, 290);
+    Screen('DrawText', windowPtr, noticeH7, 100, 320);
+    Screen('DrawText', windowPtr, noticeH8, 100, 350);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'DrawText','+',midWidth,(midLength-30));
+    Screen('Flip',windowPtr);
+    waitsecs(1);
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%% For-Loop for 18 Trials in Ravens Block%%%
+    
+    SectionEndTime = Getsecs + 60; %%% 10 min limit %%600%%
+    sizestimulus = [0 0 1200 960];
+    
+    for trial=1:nTrials; %Start of Trial loop - Ravens
+        Response = 0;
+        
+        if Getsecs < SectionEndTime %% Check time against SectionEndTime
+            
+            %%%Present Image
+            ImageFileName = RavensImages(trial);
+            ImageFileName = char(ImageFileName);
+            Stimulus = imread(strcat('RavensImages/',ImageFileName));
+            Screen('FillRect',windowPtr,bcolor);
+            screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+            Screen('Flip',windowPtr);
+            
+            %%%%%%%%%% Get Response %%%%%%%%%%%%
+            flushEvents('keydown');
+            startRT = getsecs;
+            
+            while 1
+                [KeyIsDown,secs,KeyCode] = kbCheck;
+                if KeyIsDown;
+                    RT = (secs - startRT)*1000;
+                    if KeyCode(kbName('1')); Response = 1; break
+                    elseif KeyCode(kbName('2')); Response = 2; break
+                    elseif KeyCode(kbName('3')); Response = 3; break
+                    elseif KeyCode(kbName('4')); Response = 4; break
+                    elseif KeyCode(kbName('5')); Response = 5; break
+                    elseif KeyCode(kbName('6')); Response = 6; break
+                    elseif KeyCode(kbName('7')); Response = 7; break
+                    elseif KeyCode(kbName('8')); Response = 8; break
+                    end
+                end
+            end
+            
+            %%%%%%% Compute Accuracy %%%%%%%%%
+            if Getsecs > SectionEndTime; %%Time ran out during trial%%
+                Accuracy = '2';
+            else %%% Getsecs < Section Endtime%%
+                if  RavensCorrect(trial) == Response;
+                    Accuracy = '1';
+                else
+                    Accuracy = '0';
+                end
+            end
+            
+            
+            %%% end trial screen %%%
+            Screen('FillRect',windowPtr,bcolor);
+            Screen('Flip',windowPtr);
+            waitsecs(.5);
+            
+        else %% Getsecs > SectionEndTime, time is up
+            break
+        end
+        
+        %%% Print To Data File
+        
+        fprintf(dataFile,'\n%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\t%4.4f',SubjNo,SubjInit,Age,Gender,Task,trial,RavensCorrect(trial),Response,Accuracy,RT);
+        
+    end % end for trial loop - Ravens
+    
+    %%% End of Task Notice %%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    noticeI0 = 'You have finished this task.';
+    noticeI1 = 'Take a rest if you need. Press any key to continue to the next task';
+    Screen('DrawText', windowPtr, noticeI0, 100, 100);
+    Screen('DrawText', windowPtr, noticeI1, 100, 140);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%% LETTERS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    Task = 'Letters';
+    nTrials = 30;
+    trial = 1;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%% Instructions for Letter Sets %%%
+    
+    %%%% Letters Intro 1 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeLA1 = 'Each problem in this test has five sets of letters with four letters in each set.';
+    noticeLA2 = 'Four of the sets of letters are alike in some way.';
+    noticeLA3 = 'You are to find the rule that makes these four sets alike.';
+    noticeLA4 = 'The fifth letter set is different from them and will not fit this rule.';
+    noticeLA5 = 'You will select this different letter set as your response.';
+    noticeLA6 = 'Press any key to continue.';
+    
+    Screen('DrawText', windowPtr, noticeLA1, 100, 100);
+    Screen('DrawText', windowPtr, noticeLA2, 100, 140);
+    Screen('DrawText', windowPtr, noticeLA3, 100, 170);
+    Screen('DrawText', windowPtr, noticeLA4, 100, 200);
+    Screen('DrawText', windowPtr, noticeLA5, 100, 230);
+    Screen('DrawText', windowPtr, noticeLA6, 100, 260);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Intro 2 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeLB1 = 'The rules will NOT be based on the sounds of sets of letters, the shapes of letters,';
+    noticeLB2 = 'or whether letter combinations form words or parts of words.';
+    noticeLB3 = 'The first practice example is on the next slide.';
+    noticeLB4 = 'Try to find the rule that applies to four of the letter sets, and think which set does not follow the rule.';
+    noticeLB5 = 'Press any key to continue to the first example.';
+    
+    Screen('DrawText', windowPtr, noticeLB1, 100, 100);
+    Screen('DrawText', windowPtr, noticeLB2, 100, 140);
+    Screen('DrawText', windowPtr, noticeLB3, 100, 170);
+    Screen('DrawText', windowPtr, noticeLB4, 100, 200);
+    Screen('DrawText', windowPtr, noticeLB5, 100, 230);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Example 1 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 64];
+    Stimulus = imread(strcat('LettersImages/LettersPractice1.png'));
+    noticeC1 = 'EXAMPLE 1';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Example 1 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 64];
+    Stimulus = imread(strcat('LettersImages/LettersPractice1.png'));
+    
+    noticeLC1 = 'In the first example, four of the sets have letters in alphabetical order.';
+    noticeLC2 = 'Therefore, the correct answer would have been the second set of letters, DEFL, because the letters in this set are not in alphabetical order.';
+    noticeLC3 = 'Press any key to see the next example';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeLC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeLC2, 100, 140);
+    Screen('DrawText', windowPtr, noticeLC3, 100, 170);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Example 2 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 65];
+    Stimulus = imread(strcat('LettersImages/LettersPractice2.png'));
+    noticeC1 = 'EXAMPLE 2';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Example 2 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 65];
+    Stimulus = imread(strcat('LettersImages/LettersPractice2.png'));
+    
+    noticeLD1 = 'In the second example, four of the sets contain the letter L.';
+    noticeLD2 = 'Therefore, the correct answer would have been the fourth set of letters, THIK, because this set does not contain the letter L.';
+    noticeLD3 = 'Press any key to continue.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeLD1, 100, 100);
+    Screen('DrawText', windowPtr, noticeLD2, 100, 140);
+    Screen('DrawText', windowPtr, noticeLD3, 100, 170);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Letters Intro 3 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeLE1 = 'There are 30 problems in the experiment.  You have 7 minutes to complete as many as you can.';
+    noticeLE2 = 'You will find the problems in this set slowly get more difficult.';
+    noticeLE3 = 'You may not finish all the problems in the set before the 7 minutes, so do as many as you can.';
+    noticeLE4 = 'The accuracy of your work matters most.  Try your best to select the correct answer before moving on to the next problem.';
+    noticeLE5 = 'To select your answer press the NUMBER on the KEYPAD that corresponds to that letter set.';
+    noticeLE6 = 'Press any key to BEGIN.';
+    
+    Screen('DrawText', windowPtr, noticeLE1, 100, 100);
+    Screen('DrawText', windowPtr, noticeLE2, 100, 140);
+    Screen('DrawText', windowPtr, noticeLE3, 100, 170);
+    Screen('DrawText', windowPtr, noticeLE4, 100, 200);
+    Screen('DrawText', windowPtr, noticeLE5, 100, 230);
+    Screen('DrawText', windowPtr, noticeLE6, 100, 260);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(1);
+    pressKey = KbWait;
+    
+    Screen('FillRect',windowPtr,bcolor);
+    screen(windowPtr,'DrawText','+',midWidth,(midLength-30));
+    Screen('Flip',windowPtr);
+    waitsecs(1);
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%% For-Loop for 30 Trials in Letters Block%%%
+    
+    SectionEndTime = Getsecs + 60; %%% 7 min limit %%420%%
+    sizestimulus = [0 0 1700 264];
+    
+    for trial=1:nTrials; %Start of Trial loop - Letters
+        Response = 0;
+        
+        if Getsecs < SectionEndTime %% Check time against SectionEndTime
+            
+            %%%Present Image
+            ImageFileName = LettersImages(trial);
+            ImageFileName = char(ImageFileName);
+            Stimulus = imread(strcat('LettersImages/',ImageFileName));
+            Screen('FillRect',windowPtr,bcolor);
+            screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+            Screen('Flip',windowPtr);
+            
+            %%%%%%%%%% Get Response %%%%%%%%%%%%
+            flushEvents('keydown');
+            startRT = getsecs;
+            
+            while 1
+                [KeyIsDown,secs,KeyCode] = kbCheck;
+                if KeyIsDown;
+                    RT = (secs - startRT)*1000;
+                    if KeyCode(kbName('1')); Response = 1; break
+                    elseif KeyCode(kbName('2')); Response = 2; break
+                    elseif KeyCode(kbName('3')); Response = 3; break
+                    elseif KeyCode(kbName('4')); Response = 4; break
+                    elseif KeyCode(kbName('5')); Response = 5; break
+                    end
+                end
+            end
+            
+            %%%%%%% Compute Accuracy %%%%%%%%%
+            if Getsecs > SectionEndTime; %%Time ran out during trial%%
+                Accuracy = '2';
+            else %%% Getsecs < Section Endtime%%
+                if  LettersCorrect(trial) == Response;
+                    Accuracy = '1';
+                else
+                    Accuracy = '0';
+                end
+            end
+            
+            %%% end trial screen %%%
+            Screen('FillRect',windowPtr,bcolor);
+            Screen('Flip',windowPtr);
+            waitsecs(.5);
+            
+        else %% Getsecs > SectionEndTime, time is up
+            break
+        end
+        
+        %%% Print To Data File
+        
+        fprintf(dataFile,'\n%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\t%4.4f',SubjNo,SubjInit,Age,Gender,Task,trial,LettersCorrect(trial),Response,Accuracy,RT);
+        
+    end % end for trial loop - Letters
+    
+    %%% End of Task Notice %%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    noticeI0 = 'You have finished this task.';
+    noticeI1 = 'Take a rest if you need. Press any key to continue to the next task';
+    Screen('DrawText', windowPtr, noticeI0, 100, 100);
+    Screen('DrawText', windowPtr, noticeI1, 100, 140);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+   
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%% NUMBERS %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    Task = 'Numbers';
+    nTrials = 15;
+    trial = 1;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%% Instructions for Number Series %%%%
+    
+    %%%% Numbers Intro 1 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeNA1 = 'This is a test to see how well you can follow a series of numbers.';
+    noticeNA2 = 'On the next screen you will see an example problem.';
+    noticeNA3 = 'Find a number in the answer row at the bottom that follows the last number in the row at the top.';
+    noticeNA4 = 'Press any key to see the first example.';
+    
+    Screen('DrawText', windowPtr, noticeNA1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNA2, 100, 140);
+    Screen('DrawText', windowPtr, noticeNA3, 100, 170);
+    Screen('DrawText', windowPtr, noticeNA4, 100, 200);
+    Screen('Flip', windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 1 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 212];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice1.png'));
+    noticeC1 = 'EXAMPLE 1';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 1 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 212];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice1.png'));
+    
+    noticeNC1 = 'The correct answer would be 15.';
+    noticeNC2 = 'Press any key to see a second example.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 2 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 221];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice2.png'));
+    noticeC1 = 'EXAMPLE 2';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 2 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 221];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice2.png'));
+    
+    noticeNE1 = 'The next number in this series would be 13.';
+    noticeNE2 = 'Press any key to see a third example.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNE1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNE2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%% Numbers Example 3 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 211];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice3.png'));
+    noticeC1 = 'EXAMPLE 3';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 3 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 211];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice3.png'));
+    
+    noticeNF1 = 'In this problem, the series goes 143  254  365. The next number in the series would be 4.';
+    noticeNF2 = 'Press any key to see a fourth example.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNF1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNF2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%% Numbers Example 4 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 220];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice4.png'));
+    noticeC1 = 'EXAMPLE 4';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 4 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 220];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice4.png'));
+    
+    noticeNG1 = 'In this problem the series goes 1234  1235  1236  123. The next number in the series would be 7.';
+    noticeNG2 = 'Press any key to see a final example.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNG1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNG2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+
+    %%% Numbers Example 5 %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 215];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice5.png'));
+    noticeC1 = 'EXAMPLE 5';
+    noticeC2 = 'Press any key to reveal the answer.';
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeC1, 100, 100);
+    Screen('DrawText', windowPtr, noticeC2, 100, 140);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+    
+    %%%% Numbers Example 5 ANSWER %%%%
+    
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    sizestimulus = [0 0 431 215];
+    Stimulus = imread(strcat('NumbersImages/NumbersPractice5.png'));
+    
+    noticeNH1 = 'In this problem, 3 is added to each number in the series.';
+    noticeNH2 = '2+3   5+3   8+3   14+3   17+3.';
+    noticeNH3 = 'The next number in the series would be 20.';
+    noticeNH4 = 'Press any key to continue.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNH1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNH2, 100, 140);
+    Screen('DrawText', windowPtr, noticeNH3, 100, 170);
+    Screen('DrawText', windowPtr, noticeNH4, 100, 200);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(.2);
+    pressKey = KbWait;
+   
+    
+    %%%% Numbers Intro 2 %%%%
+    Screen('TextSize',windowPtr, textsize);
+    Screen('FillRect',windowPtr,bcolor);
+    
+    noticeNI1 = 'There are 15 problems in the experiment.  You have 5 minutes to complete as many as you can.';
+    noticeNI2 = 'You will find the problems in this set slowly get more difficult.';
+    noticeNI3 = 'You may not finish all the problems in the set before the 5 minutes, so do as many as you can.';
+    noticeNI4 = 'The accuracy of your work matters most.';
+    noticeNI5 = 'Select you response by pressing the NUMBER key on the KEYPAD that corresponds to the answer.';
+    noticeNI6 = 'Press any key to BEGIN.';
+    
+    screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+    Screen('DrawText', windowPtr, noticeNI1, 100, 100);
+    Screen('DrawText', windowPtr, noticeNI2, 100, 140);
+    Screen('DrawText', windowPtr, noticeNI3, 100, 170);
+    Screen('DrawText', windowPtr, noticeNI4, 100, 200);
+    Screen('DrawText', windowPtr, noticeNI5, 100, 230);
+    Screen('DrawText', windowPtr, noticeNI6, 100, 260);
+    Screen('Flip',windowPtr);
+    
+    waitsecs(1);
+    pressKey = KbWait;
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%% For-Loop for 15 Trials in Numbers Block%%%
+    
+    SectionEndTime = Getsecs + 60; %%% 5 min limit %%%300%%%
+    sizestimulus = [0 0 1270 683];
+    
+    for trial=1:nTrials; %Start of Trial loop - Numbers
+        Response = 0;
+        
+        if Getsecs < SectionEndTime %% Check time against SectionEndTime
+            
+            %%%Present Image
+            ImageFileName = NumbersImages(trial);
+            ImageFileName = char(ImageFileName);
+            Stimulus = imread(strcat('NumbersImages/',ImageFileName));
+            Screen('FillRect',windowPtr,bcolor);
+            screen(windowPtr,'PutImage',Stimulus,centerRect(sizestimulus,screenRect)+[0 0 0 0]);
+            Screen('Flip',windowPtr);
+            
+            %%%%%%%%%% Get Response %%%%%%%%%%%%
+            flushEvents('keydown');
+            startRT = getsecs;
+            
+            while 1
+                [KeyIsDown,secs,KeyCode] = kbCheck;
+                if KeyIsDown;
+                    RT = (secs - startRT)*1000;
+                    if KeyCode(kbName('1')); Response = 1; break
+                    elseif KeyCode(kbName('2')); Response = 2; break
+                    elseif KeyCode(kbName('3')); Response = 3; break
+                    elseif KeyCode(kbName('4')); Response = 4; break
+                    elseif KeyCode(kbName('5')); Response = 5; break
+                    end
+                end
+            end
+            
+            %%%%%%% Compute Accuracy %%%%%%%%%
+            if Getsecs > SectionEndTime; %%Time ran out during trial%%
+                Accuracy = '2';
+            else %%% Getsecs < Section Endtime%%
+                if  NumbersCorrect(trial) == Response;
+                    Accuracy = '1';
+                else
+                    Accuracy = '0';
+                end
+            end
+            
+            %%% end trial screen %%%
+            Screen('FillRect',windowPtr,bcolor);
+            Screen('Flip',windowPtr);
+            waitsecs(.5);
+            
+        else %% Getsecs > SectionEndTime, time is up
+            break
+        end
+        
+        %%% Print To Data File
+        
+        fprintf(dataFile,'\n%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\t%4.4f',SubjNo,SubjInit,Age,Gender,Task,trial,NumbersCorrect(trial),Response,Accuracy,RT);
+        
+    end % end for trial loop - Numbers
+    
+%     %%% End of Task Notice %%%
+%     Screen('TextSize',windowPtr, textsize);
+%     Screen('FillRect',windowPtr,bcolor);
+%     noticeI0 = 'You have finished this task.';
+%     noticeI1 = 'Take a rest if you need. Press any key to continue to the next task';
+%     Screen('DrawText', windowPtr, noticeI0, 100, 100);
+%     Screen('DrawText', windowPtr, noticeI1, 100, 140);
+%     Screen('Flip', windowPtr);
+%     
+%     waitsecs(.2);
+%     pressKey = KbWait;
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    endExpt = (getsecs - startExpt)/60
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % show notice for the end of experiment
+    Screen('TextSize',windowPtr, textsize);
+    
+    notice0 = 'Thank you!!!';
+    notice1 = 'This is the end of the experiment.';
+    notice2 = 'Please go see the experimenter.';
+    
+    Screen('FillRect',windowPtr,bcolor);
+    Screen('DrawText', windowPtr, notice0, 100, 100);
+    Screen('DrawText', windowPtr, notice1, 100, 140);
+    Screen('DrawText', windowPtr, notice2, 100, 170);
+    Screen('Flip',windowPtr);
+    waitsecs(10);
+    pressKey = KbWait;
+    
+    
+    ShowCursor;
+    screen('CloseAll');
+    
+catch
+    
+    ShowCursor;
+    screen('CloseAll');
+    rethrow(lasterror);
+    
+    
+end
+
+
+
+
